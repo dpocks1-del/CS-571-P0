@@ -1,0 +1,8 @@
+/* Your custom styles. Loaded after Bootstrap, so anything here wins. */
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  min-height: 100vh;
+}
