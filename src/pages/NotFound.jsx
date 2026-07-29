@@ -2,11 +2,11 @@ import { Link } from 'react-router-dom'
 
 export default function NotFound() {
   return (
-    <div className="text-center py-5">
-      <h1 className="display-1 fw-bold">404</h1>
-      <p className="fs-4">Sorry, that page doesn&apos;t exist.</p>
-      <Link className="btn btn-primary" to="/">
-        Go home
+    <div className="container mt-5 text-center">
+      <h1>404</h1>
+      <p>Sorry, the page you're looking for doesn't exist.</p>
+      <Link to="/" className="btn btn-primary mt-3">
+        Go back home
       </Link>
     </div>
   )

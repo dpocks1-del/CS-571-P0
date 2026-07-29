@@ -11,8 +11,10 @@
     "deploy": "npm run build && gh-pages -d docs"
   },
   "dependencies": {
-    "bootstrap": "^5.3.3",
+    "bootstrap": "^5.3.8",
+    "rc-slider": "^11.1.9",
     "react": "^18.3.1",
+    "react-bootstrap": "^2.10.10",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.2"
   },
