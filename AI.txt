@@ -8,6 +8,10 @@ eBay, Facebook Marketplace, and OfferUp, and lets a user manage their own
 cross-posted listings. Covers three main pages: Purchase (browse/buy),
 Communications, and List (manage/create listings).
 
+AI Usage
+--------
+95% written by AI
+
 1. NAVIGATION
 -------------
 - Rewrote NavBar to use react-bootstrap components (Navbar, Nav, Container)
