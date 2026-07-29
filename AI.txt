@@ -1,0 +1,111 @@
+CONVERSATION SUMMARY: Marketplace Aggregator Web App
+======================================================
+
+OVERVIEW
+--------
+Built out a React + Bootstrap web app that aggregates resale listings across
+eBay, Facebook Marketplace, and OfferUp, and lets a user manage their own
+cross-posted listings. Covers three main pages: Purchase (browse/buy),
+Communications, and List (manage/create listings).
+
+1. NAVIGATION
+-------------
+- Rewrote NavBar to use react-bootstrap components (Navbar, Nav, Container)
+  instead of raw Bootstrap classes, while keeping react-router-dom's NavLink
+  for active-route highlighting.
+- Renamed nav items to: Purchase, Communications, List.
+- Scaffolded Purchase.jsx, Communications.jsx, List.jsx, and NotFound.jsx pages.
+- Updated App.jsx routing: "/" and "/purchase" both route to Purchase,
+  "/communications" -> Communications, "/list" -> List, "*" -> NotFound.
+
+2. DATA SOURCE RESEARCH
+------------------------
+- Investigated Facebook's Content Library API - found it's a restricted
+  research-access tool (Python/R client, Secure Research Environment), not a
+  usable public API for this app.
+- Investigated eBay's Browse API - confirmed it's a legitimate public REST
+  API (OAuth client-credentials flow), but requires a backend proxy since
+  credentials can't be exposed in frontend code. Sketched a Node/Express
+  proxy pattern for this (not yet wired in - decided to mock data instead).
+
+3. PURCHASE PAGE
+-----------------
+- Built a Purchase page that:
+  - Loads listings (mock data shaped like eBay's item_summary response)
+  - Displays results as Bootstrap Cards in a responsive grid
+    (1 col mobile / 2 col medium / 3 col large)
+  - Has a left-hand filter panel with:
+      * Keyword filter (add/remove keyword tags, AND-matched against title)
+      * Source filter (checkboxes: eBay, Facebook Marketplace, OfferUp)
+      * Condition filter (checkboxes: New, Used, Certified - Refurbished)
+      * Price range filter: dual-handle slider (rc-slider) with a histogram
+        of item counts per price bucket, bounds computed dynamically from
+        loaded data
+      * "Show saved only" toggle
+  - Each listing card shows a color-coded source badge
+    (eBay = yellow, Facebook = blue, OfferUp = purple)
+  - Save/unsave button per card, backed by sessionStorage
+    (key: "savedListingIds", an array of item IDs)
+  - Pagination with selectable page size (25/50/100), controls shown both
+    above and below the results, kept in sync
+
+4. SHARED COMPONENTS
+----------------------
+- Extracted reusable components:
+    * ListingCard.jsx - card for purchase-side listings (source badge,
+      view/save buttons)
+    * FilterPanel.jsx - fully abstracted filter sidebar, reused on both
+      Purchase and List pages via a "showSavedOnly" prop and a children
+      slot for page-specific filters (e.g. status)
+    * KeywordFilter.jsx - keyword tag input
+    * PriceFilter.jsx - price slider + histogram
+
+5. MOCK DATA
+------------
+- mockData.js: generates 100 pseudo-random eBay-style listings
+  (seeded random generator for consistent results across reloads), each
+  tagged with a single "source" (ebay/facebook/offerup) for the Purchase page.
+- mockListings.js: generates 40 pseudo-random "my listings" entries for the
+  List page, each with a "sources" ARRAY (since a single listing can be
+  cross-posted to multiple sites) plus status (active/sold/draft) and views.
+
+6. LIST (MY LISTINGS) PAGE
+-----------------------------
+- Mirrors the Purchase page layout, reusing FilterPanel.
+- ListingItemCard.jsx: shows ALL source badges a listing is posted to
+  (not just one), each badge linking out to that site's listing URL, plus a
+  status badge (active/sold/draft).
+- Filter panel adds a Status filter (active/sold/draft) via FilterPanel's
+  children slot; "Show saved only" hidden since users can't save their own
+  listings.
+- Source filter logic: a listing matches if it's posted to AT LEAST ONE of
+  the selected sources.
+- Edit/Delete buttons per listing card (Edit currently just logs to console;
+  Delete removes from state and localStorage if applicable).
+- "Create Listing" button added to the page header.
+
+7. CREATE LISTING WORKFLOW
+------------------------------
+- New route: /list/create -> CreateListing.jsx
+- Form fields: photo upload (multiple, stored as base64 data URLs), title,
+  description, price, condition, and checkboxes for which sites to list on
+  (eBay / Facebook / OfferUp).
+- On submit: builds a listing object and stores it in localStorage under key
+  "userListings" (stand-in for a real backend/API, since browser apps can't
+  write actual files to disk). List.jsx merges "userListings" from
+  localStorage with the mock listings on load.
+- Noted as a clear seam for future work: swapping the localStorage read/write
+  for real API calls (POST to create, GET to list) is a small, isolated change.
+
+OPEN ITEMS / FUTURE WORK DISCUSSED
+-------------------------------------
+- Real eBay Browse API integration (backend proxy sketched but not wired up;
+  currently using mock data instead).
+- No real Facebook Marketplace or OfferUp public API exists for this kind of
+  integration - would need to research alternatives if real data is required.
+- Edit flow for existing listings not yet built (button currently just logs
+  to console) - discussed possibly reusing the CreateListing form pre-filled
+  with existing data.
+- Delete currently has no confirmation step.
+- Image storage via base64 in localStorage will hit size limits with many/
+  large images - fine for prototyping, would need revisiting for production.
