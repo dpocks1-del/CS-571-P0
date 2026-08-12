@@ -24,6 +24,8 @@ export default function Purchase() {
     savedOnly: false,
     priceRange: null,
     sources: [...SOURCE_VALUES],
+    localOnly: false,
+    maxDistance: null,
   })
 
   useEffect(() => {
@@ -48,6 +50,17 @@ export default function Purchase() {
     }
   }, [items])
 
+  const distanceBounds = useMemo(() => {
+    const distances = items
+      .map((item) => item.distanceMiles)
+      .filter((d) => d != null)
+    if (distances.length === 0) return { min: 0, max: 0 }
+    return {
+      min: Math.floor(Math.min(...distances)),
+      max: Math.ceil(Math.max(...distances)),
+    }
+  }, [items])
+
   useEffect(() => {
     if (items.length > 0 && filters.priceRange === null) {
       setFilters((f) => ({
@@ -56,6 +69,15 @@ export default function Purchase() {
       }))
     }
   }, [items, priceBounds, filters.priceRange])
+
+  useEffect(() => {
+    if (items.length > 0 && filters.maxDistance === null) {
+      setFilters((f) => ({
+        ...f,
+        maxDistance: distanceBounds.max,
+      }))
+    }
+  }, [items, distanceBounds, filters.maxDistance])
 
   const toggleSave = (itemId) => {
     setSavedIds((prev) => {
@@ -111,12 +133,18 @@ export default function Purchase() {
       const matchesPrice =
         !filters.priceRange ||
         (price >= filters.priceRange[0] && price <= filters.priceRange[1])
+      const matchesLocation =
+        !filters.localOnly ||
+        (item.distanceMiles != null &&
+          (filters.maxDistance == null ||
+            item.distanceMiles <= filters.maxDistance))
       return (
         matchesCondition &&
         matchesKeywords &&
         matchesSaved &&
         matchesSource &&
-        matchesPrice
+        matchesPrice &&
+        matchesLocation
       )
     })
   }, [items, filters, savedIds])
@@ -144,11 +172,13 @@ export default function Purchase() {
             filters={filters}
             setFilters={setFilters}
             priceBounds={priceBounds}
+            distanceBounds={distanceBounds}
             items={items}
             onToggleSource={toggleSource}
             onToggleCondition={toggleCondition}
             onAddKeyword={addKeyword}
             onRemoveKeyword={removeKeyword}
+            showLocalFilter
           />
         </div>
         <div className="col-md-9">

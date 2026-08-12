@@ -1,4 +1,5 @@
 import PriceFilter from './PriceFilter'
+import DistanceFilter from './DistanceFilter'
 import KeywordFilter from './KeywordFilter'
 
 const SOURCE_OPTIONS = [
@@ -13,12 +14,14 @@ export default function FilterPanel({
   filters,
   setFilters,
   priceBounds,
+  distanceBounds = { min: 0, max: 0 },
   items,
   onToggleSource,
   onToggleCondition,
   onAddKeyword,
   onRemoveKeyword,
   showSavedOnly = true,
+  showLocalFilter = false,
   children,
 }) {
   return (
@@ -69,6 +72,38 @@ export default function FilterPanel({
           </div>
         ))}
       </div>
+
+      {showLocalFilter && (
+        <div className="mb-3">
+          <label className="form-label d-block">Location</label>
+          <div className="form-check form-switch">
+            <input
+              type="checkbox"
+              className="form-check-input"
+              id="localOnly"
+              role="switch"
+              checked={filters.localOnly}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, localOnly: e.target.checked }))
+              }
+            />
+            <label className="form-check-label" htmlFor="localOnly">
+              Local listings only
+            </label>
+          </div>
+
+          {filters.localOnly && filters.maxDistance != null && (
+            <DistanceFilter
+              min={distanceBounds.min}
+              max={distanceBounds.max}
+              value={filters.maxDistance}
+              onChange={(val) =>
+                setFilters((f) => ({ ...f, maxDistance: val }))
+              }
+            />
+          )}
+        </div>
+      )}
 
       {filters.priceRange && (
         <PriceFilter

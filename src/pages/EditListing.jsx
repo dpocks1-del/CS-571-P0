@@ -1,12 +1,14 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import Form from 'react-bootstrap/Form'
 import Button from 'react-bootstrap/Button'
 import Row from 'react-bootstrap/Row'
 import Col from 'react-bootstrap/Col'
+import { mockListingsResponse } from '../mockListings'
 
 
 const STORAGE_KEY = 'userListings'
+const OVERRIDES_KEY = 'listingOverrides'
 
 const SOURCE_OPTIONS = [
   { value: 'ebay', label: 'eBay' },
@@ -17,7 +19,6 @@ const SOURCE_OPTIONS = [
 const CONDITION_OPTIONS = ['New', 'Used', 'Certified - Refurbished']
 
 
-// Converts a File to a base64 data URL so it can be stored as JSON/localStorage
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -28,8 +29,9 @@ function fileToDataUrl(file) {
 }
 
 
-export default function CreateListing() {
+export default function EditListing() {
   const navigate = useNavigate()
+  const { itemId } = useParams()
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -38,9 +40,64 @@ export default function CreateListing() {
   const [sources, setSources] = useState([])
   const [images, setImages] = useState([])
 
+  const [status, setStatus] = useState('draft')
+  const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [submitAction, setSubmitAction] = useState(null)
   const [errorMsg, setErrorMsg] = useState(null)
+
+  const [originalListing, setOriginalListing] = useState(null)
+
+
+  useEffect(() => {
+    const userRaw = localStorage.getItem(STORAGE_KEY)
+    const userListings = userRaw ? JSON.parse(userRaw) : []
+
+    const overridesRaw = localStorage.getItem(OVERRIDES_KEY)
+    const overrides = overridesRaw ? JSON.parse(overridesRaw) : {}
+
+    // First look for a user-created listing
+    let listing = userListings.find((item) => item.itemId === itemId)
+
+    // If it isn't a user listing, look in the mock data
+    if (!listing) {
+      listing = mockListingsResponse.itemSummaries.find(
+        (item) => item.itemId === itemId
+      )
+    }
+
+    // Apply any previous edits to a mock listing
+    if (listing && overrides[itemId]) {
+      listing = {
+        ...listing,
+        ...overrides[itemId],
+      }
+    }
+
+    if (!listing) {
+      setErrorMsg('Listing not found.')
+      setLoading(false)
+      return
+    }
+
+    setOriginalListing(listing)
+
+    setTitle(listing.title || '')
+    setDescription(listing.description || '')
+    setPrice(listing.price?.value || '')
+    setCondition(listing.condition || CONDITION_OPTIONS[0])
+    setSources(listing.sources || [])
+    setStatus(listing.status || 'draft')
+
+    if (Array.isArray(listing.images) && listing.images.length > 0) {
+      setImages(listing.images)
+    } else if (listing.image?.imageUrl) {
+      setImages([listing.image.imageUrl])
+    } else {
+      setImages([])
+    }
+
+    setLoading(false)
+  }, [itemId])
 
 
   const toggleSource = (source) => {
@@ -64,7 +121,6 @@ export default function CreateListing() {
       setErrorMsg('Unable to load one or more images.')
     }
 
-    // Allows the same file to be selected again later
     e.target.value = ''
   }
 
@@ -74,20 +130,7 @@ export default function CreateListing() {
   }
 
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-
-    // Regular form submission creates an active listing.
-    await createListing('active')
-  }
-
-
-  const handleSaveDraft = () => {
-    createListing('draft')
-  }
-
-
-  const createListing = async (status) => {
+  const saveListing = async (newStatus) => {
     setErrorMsg(null)
 
     if (!title.trim() || !price || sources.length === 0) {
@@ -97,18 +140,27 @@ export default function CreateListing() {
       return
     }
 
+    if (!originalListing) {
+      setErrorMsg('Listing could not be found.')
+      return
+    }
+
     setSubmitting(true)
-    setSubmitAction(status)
 
-
-    const newListing = {
-      itemId: `listing|${Date.now()}|0`,
+    const updatedListing = {
+      ...originalListing,
 
       sources,
 
-      sourceUrls: Object.fromEntries(
-        sources.map((s) => [s, '#'])
-      ),
+      sourceUrls: {
+        ...originalListing.sourceUrls,
+        ...Object.fromEntries(
+          sources.map((source) => [
+            source,
+            originalListing.sourceUrls?.[source] || '#',
+          ])
+        ),
+      },
 
       title: title.trim(),
 
@@ -116,7 +168,7 @@ export default function CreateListing() {
 
       price: {
         value: Number(price).toFixed(2),
-        currency: 'USD',
+        currency: originalListing.price?.currency || 'USD',
       },
 
       image: {
@@ -127,39 +179,88 @@ export default function CreateListing() {
 
       condition,
 
-      status,
-
-      views: 0,
-
-      categories: [],
-
-      createdAt: new Date().toISOString(),
+      status: newStatus,
     }
 
 
-    // Save the listing to localStorage.
-    // This is the spot to swap in a real POST request later.
-    const existingRaw = localStorage.getItem(STORAGE_KEY)
-    const existing = existingRaw ? JSON.parse(existingRaw) : []
+    const userRaw = localStorage.getItem(STORAGE_KEY)
+    const userListings = userRaw ? JSON.parse(userRaw) : []
 
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify([...existing, newListing])
+    const isUserListing = userListings.some(
+      (item) => item.itemId === itemId
     )
+
+
+    if (isUserListing) {
+      // Update an existing user-created listing
+      const updatedUserListings = userListings.map((item) =>
+        item.itemId === itemId ? updatedListing : item
+      )
+
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(updatedUserListings)
+      )
+    } else {
+      // Store an override for a mock listing
+      const overridesRaw = localStorage.getItem(OVERRIDES_KEY)
+      const overrides = overridesRaw ? JSON.parse(overridesRaw) : {}
+
+      overrides[itemId] = updatedListing
+
+      localStorage.setItem(
+        OVERRIDES_KEY,
+        JSON.stringify(overrides)
+      )
+    }
 
 
     setTimeout(() => {
       setSubmitting(false)
-      setSubmitAction(null)
       navigate('/list')
     }, 300)
   }
 
 
+  const handleSave = (e) => {
+    e.preventDefault()
+    saveListing(status)
+  }
+
+
+  const handlePublish = () => {
+    saveListing('active')
+  }
+
+
+  if (loading) {
+    return (
+      <div className="container mt-4" style={{ maxWidth: 700 }}>
+        Loading listing...
+      </div>
+    )
+  }
+
+
+  if (errorMsg && !originalListing) {
+    return (
+      <div className="container mt-4" style={{ maxWidth: 700 }}>
+        <div className="alert alert-danger">{errorMsg}</div>
+
+        <Button
+          variant="outline-secondary"
+          onClick={() => navigate('/list')}
+        >
+          Back to Listings
+        </Button>
+      </div>
+    )
+  }
+
+
   return (
     <div className="container mt-4" style={{ maxWidth: 700 }}>
-      <h1>Create Listing</h1>
-
+      <h1>Edit Listing</h1>
 
       {errorMsg && (
         <div className="alert alert-danger">
@@ -167,8 +268,7 @@ export default function CreateListing() {
         </div>
       )}
 
-
-      <Form onSubmit={handleSubmit}>
+      <Form onSubmit={handleSave}>
         <Form.Group className="mb-3">
           <Form.Label>Photos</Form.Label>
 
@@ -299,31 +399,29 @@ export default function CreateListing() {
 
         <div className="d-flex gap-2">
           <Button
-            type="button"
-            variant="secondary"
-            disabled={submitting}
-            onClick={handleSaveDraft}
-          >
-            {submitting && submitAction === 'draft'
-              ? 'Saving...'
-              : 'Save as Draft'}
-          </Button>
-
-          <Button
             type="submit"
             variant="primary"
             disabled={submitting}
           >
-            {submitting && submitAction === 'active'
-              ? 'Publishing...'
-              : 'Publish Listing'}
+            {submitting ? 'Saving...' : 'Save Changes'}
           </Button>
+
+          {status === 'draft' && (
+            <Button
+              type="button"
+              variant="success"
+              disabled={submitting}
+              onClick={handlePublish}
+            >
+              {submitting ? 'Publishing...' : 'Publish Listing'}
+            </Button>
+          )}
 
           <Button
             type="button"
             variant="outline-secondary"
-            disabled={submitting}
             onClick={() => navigate('/list')}
+            disabled={submitting}
           >
             Cancel
           </Button>

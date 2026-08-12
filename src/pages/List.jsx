@@ -34,7 +34,17 @@ export default function List() {
     const timer = setTimeout(() => {
       const userRaw = localStorage.getItem(USER_LISTINGS_KEY)
       const userListings = userRaw ? JSON.parse(userRaw) : []
-      setItems([...userListings, ...mockListingsResponse.itemSummaries])
+
+      const overridesRaw = localStorage.getItem('listingOverrides')
+      const overrides = overridesRaw ? JSON.parse(overridesRaw) : {}
+
+      const mockListings = mockListingsResponse.itemSummaries.map((item) =>
+        overrides[item.itemId]
+          ? { ...item, ...overrides[item.itemId] }
+          : item
+      )
+
+      setItems([...userListings, ...mockListings])
       setLoading(false)
     }, 300)
     return () => clearTimeout(timer)
@@ -100,8 +110,7 @@ export default function List() {
   }
 
   const handleEdit = (itemId) => {
-    console.log('Edit listing:', itemId)
-    // TODO: open edit form/modal
+    navigate(`/list/${itemId}/edit`)
   }
 
   const handleDelete = (itemId) => {

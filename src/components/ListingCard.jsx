@@ -2,6 +2,8 @@ import Card from 'react-bootstrap/Card'
 import Button from 'react-bootstrap/Button'
 import Col from 'react-bootstrap/Col'
 import Badge from 'react-bootstrap/Badge'
+import { useNavigate } from 'react-router-dom'
+import { useMessages } from '../contexts/MessagesContext.jsx'
 
 const SOURCE_LABELS = {
   ebay: 'eBay',
@@ -16,6 +18,14 @@ const SOURCE_COLORS = {
 }
 
 export default function ListingCard({ item, saved, onToggleSave }) {
+  const navigate = useNavigate()
+  const { startConversationWithSeller } = useMessages()
+
+  function handleMessageSeller() {
+    startConversationWithSeller(item)
+    navigate('/communications')
+  }
+
   return (
     <Col>
       <Card className="h-100">
@@ -48,7 +58,12 @@ export default function ListingCard({ item, saved, onToggleSave }) {
             {item.condition} · {item.seller.username} (
             {item.seller.feedbackPercentage}%)
           </Card.Text>
-          <div className="d-flex gap-2">
+          {item.distanceMiles != null && (
+            <Card.Text className="small text-success mb-2">
+              📍 Local · {item.distanceMiles} mi away
+            </Card.Text>
+          )}
+          <div className="d-flex gap-2 flex-wrap">
             <Button
               href={item.itemWebUrl}
               target="_blank"
@@ -64,6 +79,9 @@ export default function ListingCard({ item, saved, onToggleSave }) {
               size="sm"
             >
               {saved ? 'Saved' : 'Save'}
+            </Button>
+            <Button onClick={handleMessageSeller} variant="outline-dark" size="sm">
+              Message seller
             </Button>
           </div>
         </Card.Body>

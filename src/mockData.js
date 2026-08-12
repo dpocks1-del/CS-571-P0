@@ -66,6 +66,13 @@ function generateMockItems(count) {
     const feedback = (90 + rand() * 10).toFixed(1) // 90.0 - 100.0
     const rawId = `1234567890${i.toString().padStart(2, '0')}`
 
+    // ~65% of listings offer local pickup and have a distance from the user.
+    // The rest are ship-only/national listings with no location data.
+    const hasLocalPickup = rand() < 0.65
+    const distanceMiles = hasLocalPickup
+      ? Number((0.5 + rand() * 59.5).toFixed(1)) // 0.5 - 60 miles
+      : null
+
     items.push({
       itemId: `${source}|${rawId}|0`,
       source,
@@ -76,6 +83,7 @@ function generateMockItems(count) {
       condition,
       categories: [{ categoryId: '625', categoryName: 'Cameras & Photo' }],
       seller: { username: seller, feedbackPercentage: feedback },
+      distanceMiles,
     })
   }
 
